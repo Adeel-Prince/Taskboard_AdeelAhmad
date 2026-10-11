@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Taskboard</title>
+    <!-- Apply the saved theme before first paint so there is no light-to-dark flash. -->
+    <script>
+      try {
+        var saved = localStorage.getItem("taskboard:theme");
+        document.documentElement.dataset.theme =
+          saved ||
+          (matchMedia("(prefers-color-scheme: dark)").matches
+            ? "dark"
+            : "light");
+      } catch (error) {}
+    </script>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%274%27 fill=%27%231a222a%27/%3E%3Crect x=%277%27 y=%278%27 width=%2718%27 height=%275%27 fill=%27%23c43a2c%27/%3E%3Crect x=%277%27 y=%2714%27 width=%2718%27 height=%275%27 fill=%27%232b6aa8%27/%3E%3Crect x=%277%27 y=%2720%27 width=%2718%27 height=%275%27 fill=%27%237d8993%27/%3E%3C/svg%3E"
+    />
+    <link rel="stylesheet" href="css/fonts.css" />
+    <link rel="stylesheet" href="css/tokens.css" />
+    <link rel="stylesheet" href="css/base.css" />
+    <link rel="stylesheet" href="css/components.css" />
+  </head>
+
+  <body>
+    <div class="app">
+      <main class="app__main">
+        <header class="header">
+          <div>
+            <h1 class="title">Taskboard</h1>
+            <p class="tagline">
+              Plain JavaScript, no frameworks. Task Mangement Application.
+            </p>
+          </div>
+          <div class="header__actions">
+            <button
+              id="undo-btn"
+              class="btn"
+              type="button"
+              title="Undo (Ctrl+Z)"
+            >
+              Undo
+            </button>
+            <button
+              id="redo-btn"
+              class="btn"
+              type="button"
+              title="Redo (Ctrl+Shift+Z)"
+            >
+              Redo
+            </button>
+            <button
+              id="help-btn"
+              class="btn"
+              type="button"
+              title="Keyboard shortcuts (?)"
+            >
+              Shortcuts
+            </button>
+            <button id="theme-btn" class="btn" type="button">Dark theme</button>
+          </div>
+        </header>
+
+        <div id="notice" class="notice" role="status" hidden>
+          <p id="notice-text"></p>
+          <button id="notice-close" class="btn btn--quiet" type="button">
+            Dismiss
+          </button>
+        </div>
+
+        <form id="add-form" class="add" autocomplete="off">
+          <input
+            id="add-title"
+            class="field field--title"
+            type="text"
+            maxlength="120"
+            required
+            placeholder="Add a task (press N)"
+            aria-label="Task title"
+          />
+          <select id="add-priority" class="field" aria-label="Priority">
+            <option value="high">High</option>
+            <option value="medium" selected>Medium</option>
+            <option value="low">Low</option>
+          </select>
+          <input id="add-due" class="field" type="date" aria-label="Due date" />
+          <button class="btn btn--primary" type="submit">Add task</button>
+        </form>
+
+        <section class="toolbar" aria-label="Search, filter and sort">
+          <input
+            id="search"
+            class="field field--search"
+            type="search"
+            placeholder="Search tasks (press /)"
+            aria-label="Search tasks"
+          />
+          <div
+            id="status-filter"
+            class="segmented"
+            role="group"
+            aria-label="Show tasks"
+          >
+            <button type="button" data-value="all" aria-pressed="true">
+              All
+            </button>
+            <button type="button" data-value="active" aria-pressed="false">
+              Open
+            </button>
+            <button type="button" data-value="completed" aria-pressed="false">
+              Done
+            </button>
+          </div>
+          <label class="control"
+            >Priority
+            <select id="priority-filter" class="field">
+              <option value="all">Any</option>
+              <option value="high">High</option>
+              <option value="medium">Medium</option>
+              <option value="low">Low</option>
+            </select>
+          </label>
+          <label class="control"
+            >Sort
+            <select id="sort-select" class="field">
+              <option value="manual">Manual order</option>
+              <option value="created">Date created</option>
+              <option value="due">Due date</option>
+              <option value="priority">Priority</option>
+              <option value="title">Title</option>
+            </select>
+          </label>
+          <button
+            id="dir-btn"
+            class="btn"
+            type="button"
+            title="Reverse the sort direction"
+          >
+            Ascending
+          </button>
+        </section>
+
+        <p id="drag-hint" class="hint" hidden>
+          Drag and drop is off while a sort is active. Choose Manual order to
+          reorder tasks.
+        </p>
+
+        <ul id="task-list" class="rack" aria-label="Tasks"></ul>
+        <div id="empty-state" class="empty" hidden></div>
+
+        <footer class="foot">
+          <span id="stats"></span>
+          <button id="clear-completed" class="btn" type="button">
+            Clear completed
+          </button>
+        </footer>
+      </main>
+
+      <aside class="app__side" aria-label="History">
+        <section class="log">
+          <div class="log__head">
+            <h2 class="log__title">History</h2>
+            <span id="history-count" class="log__count">0 of 20</span>
+          </div>
+          <ol id="history-list" class="log__list"></ol>
+        </section>
+
+        <details class="devtools">
+          <summary>Developer tools</summary>
+          <p>Use these to demonstrate storage and schema migration.</p>
+          <div class="devtools__actions">
+            <button id="load-legacy" class="btn" type="button">
+              Load old-format (v1) data
+            </button>
+            <button id="reset-data" class="btn" type="button">
+              Reset all data
+            </button>
+          </div>
+        </details>
+      </aside>
+    </div>
+
+    <dialog id="edit-dialog" class="dialog" aria-labelledby="edit-heading">
+      <form id="edit-form">
+        <h2 id="edit-heading">Edit task</h2>
+        <div class="form-row">
+          <label for="edit-title">Title</label>
+          <input
+            id="edit-title"
+            class="field"
+            type="text"
+            maxlength="120"
+            required
+          />
+        </div>
+        <div class="form-row">
+          <label for="edit-notes">Notes</label>
+          <textarea
+            id="edit-notes"
+            class="field field--area"
+            rows="3"
+            maxlength="400"
+          ></textarea>
+        </div>
+        <div class="form-grid">
+          <div class="form-row">
+            <label for="edit-priority">Priority</label>
+            <select id="edit-priority" class="field">
+              <option value="high">High</option>
+              <option value="medium">Medium</option>
+              <option value="low">Low</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label for="edit-due">Due date</label>
+            <input id="edit-due" class="field" type="date" />
+          </div>
+        </div>
+        <div class="dialog__actions">
+          <button id="edit-cancel" class="btn" type="button">Cancel</button>
+          <button class="btn btn--primary" type="submit">Save changes</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="help-dialog" class="dialog" aria-labelledby="help-heading">
+      <h2 id="help-heading">Keyboard shortcuts</h2>
+      <dl id="shortcut-list" class="shortcut-list"></dl>
+      <p class="dialog__note">
+        Shortcuts pause while you type in a field, so Ctrl+Z still undoes your
+        typing there.
+      </p>
+      <div class="dialog__actions">
+        <button id="help-close" class="btn btn--primary" type="button">
+          Close
+        </button>
+      </div>
+    </dialog>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <script type="module" src="js/main.js"></script>
+  </body>
+</html>

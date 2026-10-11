@@ -1,0 +1,12 @@
+{
+  "name": "taskboard",
+  "version": "1.0.0",
+  "description": "A no-framework task manager: CRUD, URL-persisted filters, drag and drop, localStorage with schema migrations, shortcuts, undo/redo and debounced search.",
+  "type": "module",
+  "scripts": {
+    "start": "npx http-server . -p 5500 -c-1",
+    "test": "node --test",
+    "test:e2e": "node tests/e2e/run-e2e.cjs"
+  },
+  "license": "MIT"
+}
